@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='UTF-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0'>
+<title>LAN Certificate Scan Report</title>
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Segoe UI',system-ui,sans-serif; background:#0f1420; color:#e4e8f0; font-size:14px; }
+  header { background:linear-gradient(135deg,#1a2440,#0f1420); padding:1.5rem 2rem; border-bottom:1px solid #2a3550; }
+  header h1 { font-size:1.4rem; font-weight:600; color:#fff; }
+  header .meta { font-size:12px; color:#8792a8; margin-top:4px; }
+  .tabs { display:flex; gap:2px; background:#161d2e; padding:0 2rem; border-bottom:1px solid #2a3550; flex-wrap:wrap; }
+  .tab { padding:12px 20px; cursor:pointer; color:#8792a8; font-weight:500; border-bottom:2px solid transparent; user-select:none; }
+  .tab:hover { color:#c4cde0; }
+  .tab.active { color:#5b9dff; border-bottom-color:#5b9dff; }
+  .panel { display:none; padding:1.5rem 2rem; }
+  .panel.active { display:block; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:1rem; margin-bottom:1.5rem; }
+  .card { background:#161d2e; border:1px solid #2a3550; border-radius:10px; padding:1.1rem 1.25rem; }
+  .card .num { font-size:2rem; font-weight:700; line-height:1; }
+  .card .lbl { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:#8792a8; margin-top:6px; }
+  .card.total .num{color:#5b9dff} .card.expired .num{color:#ff5b6e} .card.critical .num{color:#ff8a3d}
+  .card.warning .num{color:#ffd23d} .card.healthy .num{color:#3ddc84} .card.weak .num{color:#c77dff}
+  table { width:100%; border-collapse:collapse; background:#161d2e; border-radius:10px; overflow:hidden; }
+  th { background:#1c273f; color:#c4cde0; text-align:left; padding:10px 12px; font-size:12px; text-transform:uppercase; letter-spacing:.04em; cursor:pointer; white-space:nowrap; }
+  th:hover { background:#233150; }
+  td { padding:9px 12px; border-top:1px solid #222c44; vertical-align:top; }
+  tr:hover td { background:#1a2136; }
+  td.num { text-align:right; font-variant-numeric:tabular-nums; }
+  td.sans { font-size:12px; color:#9aa6be; max-width:340px; word-break:break-word; }
+  td.empty { text-align:center; color:#6b7690; padding:2rem; }
+  .badge { display:inline-block; padding:2px 9px; border-radius:5px; font-size:11px; font-weight:700; letter-spacing:.03em; }
+  .sev-expired  { background:#3a0d13; color:#ff8a97; border:1px solid #7a2531; }
+  .sev-critical { background:#3a1c0d; color:#ffab6e; border:1px solid #7a4425; }
+  .sev-warning  { background:#3a340d; color:#ffe27a; border:1px solid #7a6d25; }
+  .row-expired td  { background:#22060a !important; }
+  .row-critical td { background:#221206 !important; }
+  .row-warning td  { background:#221f06 !important; }
+  .toolbar { display:flex; gap:10px; margin-bottom:1rem; flex-wrap:wrap; align-items:center; }
+  .toolbar input { background:#0f1420; border:1px solid #2a3550; color:#e4e8f0; padding:8px 12px; border-radius:8px; min-width:260px; font-size:13px; }
+  .toolbar .hint { font-size:12px; color:#6b7690; }
+  h2.section { font-size:1rem; color:#c4cde0; margin-bottom:.75rem; font-weight:600; }
+  .legend { font-size:12px; color:#8792a8; margin-top:1rem; display:flex; gap:1.25rem; flex-wrap:wrap; }
+  .legend span::before { content:''; display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:5px; vertical-align:middle; }
+  .lg-exp::before{background:#ff5b6e} .lg-crit::before{background:#ff8a3d} .lg-warn::before{background:#ffd23d}
+  .footer { padding:1rem 2rem; color:#6b7690; font-size:12px; border-top:1px solid #2a3550; }
+</style>
+</head>
+<body>
+<header>
+  <h1>LAN Certificate &amp; TLS Configuration Report</h1>
+  <div class='meta'>Scanned 10.0.0.0/24 on ports 443,636,993,995,8443 &middot; 2026-08-22 18:45:58</div>
+</header>
+
+<div class='tabs'>
+  <div class='tab active' onclick="showTab(event,'dash')">Dashboard</div>
+  <div class='tab' onclick="showTab(event,'expiring')">Expiring Certificates</div>
+  <div class='tab' onclick="showTab(event,'ciphers')">Weak Ciphers &amp; Protocols</div>
+  <div class='tab' onclick="showTab(event,'inventory')">Full Inventory</div>
+</div>
+
+<!-- DASHBOARD -->
+<div id='dash' class='panel active'>
+  <div class='cards'>
+    <div class='card total'><div class='num'>5</div><div class='lbl'>Certificates Found</div></div>
+    <div class='card expired'><div class='num'>1</div><div class='lbl'>Expired</div></div>
+    <div class='card critical'><div class='num'>1</div><div class='lbl'>Critical (&le;7 days)</div></div>
+    <div class='card warning'><div class='num'>2</div><div class='lbl'>Warning (&le;30 days)</div></div>
+    <div class='card healthy'><div class='num'>1</div><div class='lbl'>Healthy</div></div>
+    <div class='card weak'><div class='num'>2</div><div class='lbl'>Systems w/ Weak Ciphers</div></div>
+  </div>
+  <h2 class='section'>Scan Summary</h2>
+  <table>
+    <tr><th>Metric</th><th>Value</th></tr>
+    <tr><td>Unique hosts with certificates</td><td>5</td></tr>
+    <tr><td>Total certificates discovered</td><td>5</td></tr>
+    <tr><td>Expired certificates</td><td>1</td></tr>
+    <tr><td>Expiring within 7 days (critical)</td><td>1</td></tr>
+    <tr><td>Expiring within 30 days (warning)</td><td>2</td></tr>
+    <tr><td>Systems with weak protocols/ciphers</td><td>2</td></tr>
+  </table>
+  <div class='legend'>
+    <span class='lg-exp'>Expired</span>
+    <span class='lg-crit'>Critical (&le;7 days)</span>
+    <span class='lg-warn'>Warning (&le;30 days)</span>
+  </div>
+</div>
+
+<!-- EXPIRING -->
+<div id='expiring' class='panel'>
+  <div class='toolbar'>
+    <input type='text' id='f-expiring' onkeyup="filterTable('t-expiring','f-expiring')" placeholder='Filter expiring certificates...'>
+    <span class='hint'>Click any column header to sort.</span>
+  </div>
+  <table id='t-expiring'>
+    <thead><tr>
+      <th onclick="sortTable('t-expiring',0)">Severity</th>
+      <th onclick="sortTable('t-expiring',1)">Hostname (access)</th>
+      <th onclick="sortTable('t-expiring',2)">IP</th>
+      <th onclick="sortTable('t-expiring',3)">Port</th>
+      <th onclick="sortTable('t-expiring',4)">Subject CN</th>
+      <th onclick="sortTable('t-expiring',5)">Expiry Date</th>
+      <th onclick="sortTable('t-expiring',6)">Days Left</th>
+      <th onclick="sortTable('t-expiring',7)">SANs</th>
+    </tr></thead>
+    <tbody>
+<tr data-sev='expired'><td><span class='badge sev-expired'>EXPIRED</span></td><td>legacy.corp.local</td><td>10.0.0.30</td><td>443</td><td>legacy.corp.local</td><td>2026-08-18</td><td class='num'>-4</td><td class='sans'>legacy.corp.local</td></tr>
+<tr data-sev='critical'><td><span class='badge sev-critical'>CRITICAL</span></td><td>web01.corp.local</td><td>10.0.0.20</td><td>443</td><td>www.corp.com</td><td>2026-08-25</td><td class='num'>3</td><td class='sans'>www.corp.com, corp.com, api.corp.com</td></tr>
+<tr data-sev='warning'><td><span class='badge sev-warning'>WARNING</span></td><td>vpn.corp.local</td><td>10.0.0.50</td><td>443</td><td>vpn.corp.com</td><td>2026-09-01</td><td class='num'>10</td><td class='sans'>vpn.corp.com</td></tr>
+<tr data-sev='warning'><td><span class='badge sev-warning'>WARNING</span></td><td>dc01.corp.local</td><td>10.0.0.10</td><td>636</td><td>dc01.corp.local</td><td>2026-09-15</td><td class='num'>24</td><td class='sans'>dc01.corp.local, corp.local</td></tr>
+
+    </tbody>
+  </table>
+</div>
+
+<!-- CIPHERS -->
+<div id='ciphers' class='panel'>
+  <div class='toolbar'>
+    <input type='text' id='f-ciphers' onkeyup="filterTable('t-ciphers','f-ciphers')" placeholder='Filter weak cipher findings...'>
+    <span class='hint'>Weak protocols (SSLv2/3, TLS 1.0/1.1) and weak cipher suites (NULL, EXPORT, RC4, DES, 3DES, MD5, anon).</span>
+  </div>
+  <table id='t-ciphers'>
+    <thead><tr>
+      <th onclick="sortTable('t-ciphers',0)">Hostname</th>
+      <th onclick="sortTable('t-ciphers',1)">IP</th>
+      <th onclick="sortTable('t-ciphers',2)">Port</th>
+      <th onclick="sortTable('t-ciphers',3)">Protocol</th>
+      <th onclick="sortTable('t-ciphers',4)">Least Strength</th>
+      <th onclick="sortTable('t-ciphers',5)">Weak Cipher Suites</th>
+    </tr></thead>
+    <tbody>
+<tr><td>web01.corp.local</td><td>10.0.0.20</td><td>443</td><td><span class='badge sev-critical'>TLSv1.1</span></td><td>C</td><td class='sans'></td></tr>
+<tr><td>legacy.corp.local</td><td>10.0.0.30</td><td>443</td><td><span class='badge sev-critical'>SSLv3</span></td><td>F</td><td class='sans'>SSL_RSA_WITH_RC4_128_MD5, SSL_RSA_WITH_DES_CBC_SHA</td></tr>
+<tr><td>legacy.corp.local</td><td>10.0.0.30</td><td>443</td><td><span class='badge sev-critical'>TLSv1.0</span></td><td>C</td><td class='sans'>TLS_RSA_WITH_3DES_EDE_CBC_SHA</td></tr>
+
+    </tbody>
+  </table>
+</div>
+
+<!-- INVENTORY -->
+<div id='inventory' class='panel'>
+  <div class='toolbar'>
+    <input type='text' id='f-inv' onkeyup="filterTable('t-inv','f-inv')" placeholder='Filter all certificates...'>
+    <span class='hint'>Full discovered inventory. Colour-coded rows indicate expiry status.</span>
+  </div>
+  <table id='t-inv'>
+    <thead><tr>
+      <th onclick="sortTable('t-inv',0)">Hostname (access)</th>
+      <th onclick="sortTable('t-inv',1)">IP</th>
+      <th onclick="sortTable('t-inv',2)">Port</th>
+      <th onclick="sortTable('t-inv',3)">Service</th>
+      <th onclick="sortTable('t-inv',4)">Subject CN</th>
+      <th onclick="sortTable('t-inv',5)">Issuer</th>
+      <th onclick="sortTable('t-inv',6)">Expiry</th>
+      <th onclick="sortTable('t-inv',7)">Days Left</th>
+      <th onclick="sortTable('t-inv',8)">SANs</th>
+    </tr></thead>
+    <tbody>
+<tr class='row-warning'><td>dc01.corp.local</td><td>10.0.0.10</td><td>636</td><td>ldapssl</td><td>dc01.corp.local</td><td>Corp Issuing CA</td><td>2026-09-15</td><td class='num'>24</td><td class='sans'>dc01.corp.local, corp.local</td></tr>
+<tr class='row-critical'><td>web01.corp.local</td><td>10.0.0.20</td><td>443</td><td>https</td><td>www.corp.com</td><td>DigiCert Global G2</td><td>2026-08-25</td><td class='num'>3</td><td class='sans'>www.corp.com, corp.com, api.corp.com</td></tr>
+<tr class='row-expired'><td>legacy.corp.local</td><td>10.0.0.30</td><td>443</td><td>https</td><td>legacy.corp.local</td><td>Old Internal CA</td><td>2026-08-18</td><td class='num'>-4</td><td class='sans'>legacy.corp.local</td></tr>
+<tr class=''><td>mail01.corp.local</td><td>10.0.0.40</td><td>993</td><td>imaps</td><td>mail.corp.com</td><td>Corp Issuing CA</td><td>2027-02-10</td><td class='num'>172</td><td class='sans'>mail.corp.com, smtp.corp.com</td></tr>
+<tr class='row-warning'><td>vpn.corp.local</td><td>10.0.0.50</td><td>443</td><td>https</td><td>vpn.corp.com</td><td>DigiCert Global G2</td><td>2026-09-01</td><td class='num'>10</td><td class='sans'>vpn.corp.com</td></tr>
+
+    </tbody>
+  </table>
+</div>
+
+<div class='footer'>Generated by Invoke-CertScan.ps1 &middot; nmap ssl-cert + ssl-enum-ciphers &middot; 2026-08-22 18:45:58</div>
+
+<script>
+function showTab(e,id){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  e.target.classList.add('active');
+}
+function filterTable(tid,fid){
+  var q=document.getElementById(fid).value.toLowerCase();
+  var rows=document.getElementById(tid).tBodies[0].rows;
+  for(var i=0;i<rows.length;i++){
+    rows[i].style.display = rows[i].innerText.toLowerCase().indexOf(q)>-1 ? '' : 'none';
+  }
+}
+function sortTable(tid,col){
+  var tb=document.getElementById(tid).tBodies[0];
+  var rows=Array.prototype.slice.call(tb.rows);
+  var dir=tb.getAttribute('data-sort-'+col)==='asc'?'desc':'asc';
+  tb.setAttribute('data-sort-'+col,dir);
+  rows.sort(function(a,b){
+    var x=a.cells[col].innerText.trim(), y=b.cells[col].innerText.trim();
+    var nx=parseFloat(x), ny=parseFloat(y);
+    if(!isNaN(nx)&&!isNaN(ny)){ return dir==='asc'?nx-ny:ny-nx; }
+    return dir==='asc'? x.localeCompare(y): y.localeCompare(x);
+  });
+  rows.forEach(function(r){ tb.appendChild(r); });
+}
+</script>
+</body>
+</html>
